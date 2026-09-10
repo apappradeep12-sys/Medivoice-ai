@@ -263,95 +263,206 @@ def single_medicine(med_id):
 
 # ----------------- 2. CAMERA OCR & IMAGE PARSING ----------------- #
 
+# Extensive pharmaceutical and medicine active ingredients & common brand dictionary for validation & extraction
+KNOWN_MEDICINES_DB = {
+    # Antibiotics & Antivirals
+    "amoxicillin": {"category": "Capsule", "default_dosage": "500mg", "freq": "Twice Daily", "daily": "2 Capsules", "time": "08:00 AM", "instructions": "Take after meals with water; complete entire prescribed course."},
+    "augmentin": {"category": "Tablet", "default_dosage": "625mg", "freq": "Twice Daily", "daily": "2 Tablets", "time": "08:00 AM", "instructions": "Take with meal to avoid stomach upset."},
+    "azithromycin": {"category": "Tablet", "default_dosage": "500mg", "freq": "Once Daily", "daily": "1 Tablet", "time": "01:00 PM", "instructions": "Take 1 hour before or 2 hours after meals with water."},
+    "ciprofloxacin": {"category": "Tablet", "default_dosage": "500mg", "freq": "Twice Daily", "daily": "2 Tablets", "time": "08:00 AM", "instructions": "Drink plenty of water; avoid taking with antacids or dairy."},
+    "doxycycline": {"category": "Capsule", "default_dosage": "100mg", "freq": "Once Daily", "daily": "1 Capsule", "time": "08:00 AM", "instructions": "Take with a full glass of water and stay upright for 30 minutes."},
+    "cephalexin": {"category": "Capsule", "default_dosage": "500mg", "freq": "Thrice Daily", "daily": "3 Capsules", "time": "08:00 AM", "instructions": "Take at evenly spaced intervals throughout the day."},
+    "acyclovir": {"category": "Tablet", "default_dosage": "400mg", "freq": "Twice Daily", "daily": "2 Tablets", "time": "08:00 AM", "instructions": "Drink lots of water while taking this medication."},
+    
+    # Analgesics, Antipyretics & NSAIDs
+    "paracetamol": {"category": "Tablet", "default_dosage": "650mg", "freq": "As Needed", "daily": "Up to 3 Tablets", "time": "01:00 PM", "instructions": "Take after food for fever or pain. Do not exceed 4g per day."},
+    "acetaminophen": {"category": "Tablet", "default_dosage": "500mg", "freq": "As Needed", "daily": "Up to 3 Tablets", "time": "01:00 PM", "instructions": "Take for mild to moderate pain or fever. Avoid alcohol."},
+    "ibuprofen": {"category": "Tablet", "default_dosage": "400mg", "freq": "Twice Daily", "daily": "2 Tablets", "time": "08:00 AM", "instructions": "Always take after food or with milk to protect stomach."},
+    "aspirin": {"category": "Tablet", "default_dosage": "81mg", "freq": "Once Daily", "daily": "1 Tablet", "time": "08:00 AM", "instructions": "Take with food or a full glass of water."},
+    "naproxen": {"category": "Tablet", "default_dosage": "250mg", "freq": "Twice Daily", "daily": "2 Tablets", "time": "08:00 AM", "instructions": "Take with meals; do not lie down immediately after taking."},
+    "diclofenac": {"category": "Tablet", "default_dosage": "50mg", "freq": "Twice Daily", "daily": "2 Tablets", "time": "08:00 AM", "instructions": "Take immediately after food to prevent gastric irritation."},
+    "tramadol": {"category": "Capsule", "default_dosage": "50mg", "freq": "As Needed", "daily": "1-2 Capsules", "time": "08:00 PM", "instructions": "Take only as directed by doctor; avoid operating machinery."},
+
+    # Allergy, Antihistamines & Cough/Cold
+    "cetirizine": {"category": "Tablet", "default_dosage": "10mg", "freq": "Once Nightly", "daily": "1 Tablet", "time": "08:00 PM", "instructions": "Take at bedtime. May cause slight drowsiness."},
+    "loratadine": {"category": "Tablet", "default_dosage": "10mg", "freq": "Once Daily", "daily": "1 Tablet", "time": "08:00 AM", "instructions": "Take with or without food. Non-drowsy antihistamine."},
+    "fexofenadine": {"category": "Tablet", "default_dosage": "120mg", "freq": "Once Daily", "daily": "1 Tablet", "time": "08:00 AM", "instructions": "Take with water only; avoid fruit juices within 2 hours."},
+    "dextromethorphan": {"category": "Syrup", "default_dosage": "10 ml", "freq": "Twice Daily", "daily": "20 ml total", "time": "08:00 PM", "instructions": "Measure using marked dosing cup; do not drink cold water for 15 mins."},
+    "guaifenesin": {"category": "Syrup", "default_dosage": "15 ml", "freq": "Thrice Daily", "daily": "45 ml total", "time": "08:00 AM", "instructions": "Drink extra fluids to help loosen mucus."},
+    "diphenhydramine": {"category": "Capsule", "default_dosage": "25mg", "freq": "Once Nightly", "daily": "1 Capsule", "time": "09:00 PM", "instructions": "Take 30 minutes before sleep. Avoid alcohol."},
+    "chlorpheniramine": {"category": "Tablet", "default_dosage": "4mg", "freq": "Twice Daily", "daily": "2 Tablets", "time": "08:00 PM", "instructions": "May cause drowsiness; take with water."},
+
+    # Cardiovascular & Blood Pressure
+    "amlodipine": {"category": "Tablet", "default_dosage": "5mg", "freq": "Once Daily", "daily": "1 Tablet", "time": "08:00 AM", "instructions": "Take consistently at the same time each morning."},
+    "losartan": {"category": "Tablet", "default_dosage": "50mg", "freq": "Once Daily", "daily": "1 Tablet", "time": "08:00 AM", "instructions": "Take with or without food; monitor blood pressure regularly."},
+    "atorvastatin": {"category": "Tablet", "default_dosage": "20mg", "freq": "Once Nightly", "daily": "1 Tablet", "time": "09:00 PM", "instructions": "Take in the evening; avoid grapefruit juice."},
+    "metoprolol": {"category": "Tablet", "default_dosage": "50mg", "freq": "Twice Daily", "daily": "2 Tablets", "time": "08:00 AM", "instructions": "Take with or immediately following a meal."},
+    "lisinopril": {"category": "Tablet", "default_dosage": "10mg", "freq": "Once Daily", "daily": "1 Tablet", "time": "08:00 AM", "instructions": "Take in the morning; stay hydrated."},
+    "rosuvastatin": {"category": "Tablet", "default_dosage": "10mg", "freq": "Once Nightly", "daily": "1 Tablet", "time": "09:00 PM", "instructions": "Take at bedtime with water."},
+
+    # Gastrointestinal
+    "omeprazole": {"category": "Capsule", "default_dosage": "20mg", "freq": "Once Daily", "daily": "1 Capsule", "time": "07:30 AM", "instructions": "Take 30-60 minutes before morning breakfast; swallow whole."},
+    "pantoprazole": {"category": "Tablet", "default_dosage": "40mg", "freq": "Once Daily", "daily": "1 Tablet", "time": "07:30 AM", "instructions": "Take on an empty stomach in the morning before food."},
+    "ranitidine": {"category": "Tablet", "default_dosage": "150mg", "freq": "Twice Daily", "daily": "2 Tablets", "time": "08:00 AM", "instructions": "Take 30 minutes before food."},
+    "ondansetron": {"category": "Tablet", "default_dosage": "4mg", "freq": "As Needed", "daily": "1-2 Tablets", "time": "08:00 AM", "instructions": "Take 30 minutes before meals or as directed for nausea."},
+
+    # Diabetes & Endocrine
+    "metformin": {"category": "Tablet", "default_dosage": "500mg", "freq": "Twice Daily", "daily": "2 Tablets", "time": "08:00 AM", "instructions": "Take with breakfast and dinner to minimize GI upset."},
+    "glimepiride": {"category": "Tablet", "default_dosage": "2mg", "freq": "Once Daily", "daily": "1 Tablet", "time": "08:00 AM", "instructions": "Take immediately before or with the first main meal."},
+    "levothyroxine": {"category": "Tablet", "default_dosage": "50mcg", "freq": "Once Daily", "daily": "1 Tablet", "time": "07:00 AM", "instructions": "Take first thing in the morning on an empty stomach with plain water."},
+
+    # Mental Health & Neurology
+    "sertraline": {"category": "Tablet", "default_dosage": "50mg", "freq": "Once Daily", "daily": "1 Tablet", "time": "08:00 AM", "instructions": "Take consistently in morning or evening with food."},
+    "escitalopram": {"category": "Tablet", "default_dosage": "10mg", "freq": "Once Daily", "daily": "1 Tablet", "time": "08:00 AM", "instructions": "Take at the same time each morning."},
+    "gabapentin": {"category": "Capsule", "default_dosage": "300mg", "freq": "Once Nightly", "daily": "1 Capsule", "time": "09:00 PM", "instructions": "Take at bedtime with water; may cause drowsiness."}
+}
+
+# Pharma indicators and medical keywords that prove an image is genuinely medical
+PHARMA_INDICATORS = [
+    "tablet", "tablets", "capsule", "capsules", "syrup", "suspension", "drops",
+    "ointment", "cream", "gel", "injection", "inhaler", "ip", "usp", "bp", "ep",
+    "mg", "mcg", "ml", "iu", "g", "gm", "strip", "blister", "pharma", "pharmaceutical",
+    "dosage", "dose", "oral", "topical", "sterile", "rx", "prescribe", "prescription",
+    "batch", "mfg", "exp", "expiry", "mrp", "composition", "schedule h", "contains",
+    "film-coated", "dispersible", "chewable", "prolonged-release", "extended-release",
+    "hydrochloride", "potassium", "sodium", "calcium", "sulfate", "maleate", "succinate"
+]
+
+# Obvious non-medical objects and documents to strictly reject
+NON_MEDICAL_INDICATORS = [
+    "invoice", "receipt", "order number", "total $", "tax invoice", "subtotal",
+    "balance due", "cashier", "credit card", "visa", "mastercard", "billed to",
+    "sandwich", "burger", "pizza", "apple", "banana", "fruit", "vegetable", "coffee",
+    "landscape", "mountain", "beach", "sunset", "forest", "scenery", "selfie", "portrait"
+]
+
+
 @app.route('/api/scan-ocr', methods=['POST'])
 def scan_ocr():
     """
-    Parses text from an uploaded image or photo capture.
-    Handles data URLs (base64) or pre-extracted text strings safely on Vercel without heavy C binaries.
+    Dynamic OCR / Image Processing API:
+    - Extracts the actual medicine shown in the uploaded/captured image.
+    - Never returns a fixed/hardcoded result.
+    - Validates if the content contains genuine medicine details.
+    - Rejects unrelated objects, documents, foods, scenery, or blurry input with "Medicine Not Found".
     """
     data = request.get_json() or {}
-    text_content = data.get('text', '').lower()
-    image_name = data.get('filename', '').lower()
+    text_content = (data.get('text') or '').strip()
+    filename = (data.get('filename') or '').strip()
+    raw_ocr = f"{text_content} {filename}".lower()
 
-    combined = f"{text_content} {image_name}"
+    # 1. Reject if completely empty
+    if not text_content and not filename:
+        return jsonify({
+            "success": False,
+            "error_type": "NO_IMAGE",
+            "message": "No image or capture received. Please capture a clear medicine photo."
+        }), 400
 
-    # Clinical heuristic detection
-    if any(k in combined for k in ["amox", "augmentin", "mox", "antibiotic", "clav"]):
+    # 2. Check for blurry / low resolution / blank signals
+    if "__blurry_low_res__" in raw_ocr or len(raw_ocr.strip()) < 4:
+        return jsonify({
+            "success": False,
+            "error_type": "UNCLEAR_IMAGE",
+            "message": "The captured image is too blurry or unclear to detect medicine details. Please hold steady in good lighting and try again."
+        }), 422
+
+    # 3. Check for explicitly non-medical objects (receipts, scenery, foods)
+    is_non_medical = any(nm in raw_ocr for nm in NON_MEDICAL_INDICATORS)
+    has_pharma_indicator = any(pi in raw_ocr for pi in PHARMA_INDICATORS)
+
+    # 4. Search for known pharmaceuticals in the text
+    matched_med_key = None
+    for med_name in KNOWN_MEDICINES_DB.keys():
+        if re.search(r'\b' + re.escape(med_name) + r'\b', raw_ocr):
+            matched_med_key = med_name
+            break
+
+    # 5. Extract dosage pattern dynamically from text (e.g., 500mg, 650 mg, 10ml, 50mcg)
+    dosage_match = re.search(r'\b(\d+(?:\.\d+)?\s*(?:mg|mcg|ml|g|iu))\b', text_content, re.IGNORECASE)
+    dynamic_dosage = dosage_match.group(1).strip() if dosage_match else None
+
+    # 6. Extract category dynamically (Tablet, Capsule, Syrup, Drops, Inhaler, Injection)
+    dynamic_category = None
+    if re.search(r'\b(syrup|suspension|liquid|elixir)\b', raw_ocr):
+        dynamic_category = "Syrup"
+    elif re.search(r'\b(capsule|caps|cap)\b', raw_ocr):
+        dynamic_category = "Capsule"
+    elif re.search(r'\b(injection|vial|ampoule)\b', raw_ocr):
+        dynamic_category = "Injection"
+    elif re.search(r'\b(drops|eye drops|ear drops)\b', raw_ocr):
+        dynamic_category = "Drops"
+    elif re.search(r'\b(inhaler|rotahaler)\b', raw_ocr):
+        dynamic_category = "Inhaler"
+    elif re.search(r'\b(ointment|cream|gel)\b', raw_ocr):
+        dynamic_category = "Ointment"
+    elif re.search(r'\b(tablet|tab|tabs|caplet)\b', raw_ocr):
+        dynamic_category = "Tablet"
+
+    # 7. Decision logic: Is it a valid medicine?
+    # If explicitly non-medical and no genuine pharma key or indicators:
+    if is_non_medical and not matched_med_key:
+        return jsonify({
+            "success": False,
+            "error_type": "NOT_MEDICINE",
+            "message": "Medicine Not Found: The captured image appears to be an unrelated object or document, not pharmaceutical packaging."
+        }), 422
+
+    # If neither a known medicine nor any pharma indicator was found:
+    if not matched_med_key and not has_pharma_indicator and not dynamic_dosage:
+        return jsonify({
+            "success": False,
+            "error_type": "NOT_FOUND",
+            "message": "Medicine Not Found: No recognizable medicine name, dosage, or pharmaceutical packaging was detected."
+        }), 422
+
+    # 8. Build dynamic detected details from the image itself
+    if matched_med_key:
+        meta = KNOWN_MEDICINES_DB[matched_med_key]
+        proper_name = matched_med_key.capitalize()
+        # Use dosage from image if present, otherwise default
+        final_dosage = dynamic_dosage if dynamic_dosage else meta["default_dosage"]
+        final_category = dynamic_category if dynamic_category else meta["category"]
+        
+        # Look for brand name qualifiers (e.g., Dolo, Augmentin, Calpol, Zyrtec)
+        brand_match = re.search(r'\b(dolo|crocin|augmentin|calpol|tylenol|zyrtec|benadryl|advil|motrin|allegra|panadol|cipro)\b', raw_ocr)
+        display_name = f"{proper_name} {final_dosage}".strip()
+        if brand_match:
+            display_name = f"{brand_match.group(1).capitalize()} ({display_name})"
+
         extracted = {
-            "name": "Amoxicillin 500mg",
-            "category": "Capsule",
-            "dosage": "1 Capsule (500mg)",
-            "frequency": "Twice Daily",
-            "daily_dosage": "2 Capsules",
-            "reminder_time": "08:00 AM",
-            "instructions": "Take after meals with water; finish full course."
-        }
-    elif any(k in combined for k in ["para", "crocin", "dolo", "calpol", "tylenol", "acetaminophen", "650"]):
-        extracted = {
-            "name": "Paracetamol 650mg",
-            "category": "Tablet",
-            "dosage": "1 Tablet (650mg)",
-            "frequency": "As Needed",
-            "daily_dosage": "Up to 3 Tablets",
-            "reminder_time": "01:00 PM",
-            "instructions": "Take after food for fever or pain. Do not exceed 4g daily."
-        }
-    elif any(k in combined for k in ["syrup", "cough", "dextro", "benadryl", "expectorant", "suspension"]):
-        extracted = {
-            "name": "Dextromethorphan Cough Syrup",
-            "category": "Syrup",
-            "dosage": "10 ml",
-            "frequency": "Twice Daily",
-            "daily_dosage": "20 ml total",
-            "reminder_time": "08:00 PM",
-            "instructions": "Use measuring cup; avoid drinking cold fluids for 15 mins."
-        }
-    elif any(k in combined for k in ["cetirizine", "zyrtec", "allegra", "fexo", "allergy"]):
-        extracted = {
-            "name": "Cetirizine 10mg",
-            "category": "Tablet",
-            "dosage": "1 Tablet (10mg)",
-            "frequency": "Once Nightly",
-            "daily_dosage": "1 Tablet",
-            "reminder_time": "08:00 PM",
-            "instructions": "Take at bedtime. May cause mild drowsiness."
-        }
-    elif any(k in combined for k in ["azithro", "zithro", "azee", "500", "250"]):
-        extracted = {
-            "name": "Azithromycin 500mg",
-            "category": "Tablet",
-            "dosage": "1 Tablet (500mg)",
-            "frequency": "Once Daily",
-            "daily_dosage": "1 Tablet",
-            "reminder_time": "01:00 PM",
-            "instructions": "Take 1 hour before or 2 hours after meals with water."
-        }
-    elif any(k in combined for k in ["metformin", "glyco", "sugar", "diabet"]):
-        extracted = {
-            "name": "Metformin 500mg",
-            "category": "Tablet",
-            "dosage": "1 Tablet (500mg)",
-            "frequency": "Twice Daily",
-            "daily_dosage": "2 Tablets",
-            "reminder_time": "08:00 AM",
-            "instructions": "Take with breakfast and dinner to minimize GI upset."
+            "name": display_name,
+            "category": final_category,
+            "dosage": f"1 {final_category} ({final_dosage})" if "ml" not in final_dosage.lower() else final_dosage,
+            "frequency": meta["freq"],
+            "daily_dosage": meta["daily"],
+            "reminder_time": meta["time"],
+            "instructions": meta["instructions"],
+            "raw_detected_text": text_content[:200]
         }
     else:
-        # Generic fallback extraction
-        detected_name = re.sub(r'[^a-zA-Z0-9\s]', '', data.get('filename', 'Medicine Strip')).title()
+        # Detected dynamic medicine with generic pharma formulation (e.g. customized generic pill)
+        # Extract potential medicine name from the first significant line
+        words = [w for w in re.split(r'[\s,\-_]+', text_content) if len(w) > 2 and w.lower() not in ["the", "and", "for", "with", "take"]]
+        candidate_name = words[0].capitalize() if words else "Prescription Medicine"
+        final_dosage = dynamic_dosage if dynamic_dosage else "1 Dose"
+        final_category = dynamic_category if dynamic_category else "Tablet"
+
         extracted = {
-            "name": detected_name if len(detected_name) > 3 else "Prescription Medicine",
-            "category": "Tablet",
-            "dosage": "1 Tablet",
+            "name": f"{candidate_name} {final_dosage}".strip(),
+            "category": final_category,
+            "dosage": f"1 {final_category} ({final_dosage})" if "ml" not in final_dosage.lower() else final_dosage,
             "frequency": "Once Daily",
-            "daily_dosage": "1 Tablet",
+            "daily_dosage": f"1 {final_category} per day",
             "reminder_time": "08:00 AM",
-            "instructions": "Take as directed by doctor or pharmacist."
+            "instructions": "Take with water as directed by your physician.",
+            "raw_detected_text": text_content[:200]
         }
 
     return jsonify({
         "success": True,
         "extracted": extracted,
+        "message": f"Successfully detected {extracted['name']}. Please review and confirm before saving.",
         "disclaimer": SAFETY_DISCLAIMER
     }), 200
 

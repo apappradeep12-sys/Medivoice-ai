@@ -10,6 +10,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <!-- Tesseract.js for Real-Time Client-Side OCR -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <!-- Custom Healthcare Styling -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
@@ -372,11 +374,12 @@
                         <div class="camera-viewport-container mb-3 position-relative rounded-3 overflow-hidden bg-dark text-center">
                             <video id="cameraVideo" autoplay playsinline class="w-100 h-100" style="object-fit: cover; min-height: 280px; display: none;"></video>
                             <canvas id="cameraCanvas" style="display: none;"></canvas>
+                            <img id="capturedImagePreview" class="w-100 h-100" style="object-fit: contain; min-height: 280px; max-height: 340px; display: none; background: #111;" alt="Captured Medicine">
                             
                             <div id="cameraPlaceholder" class="p-5 text-white d-flex flex-column align-items-center justify-content-center" style="min-height: 280px;">
                                 <i class="bi bi-camera-video fs-1 text-teal mb-2"></i>
                                 <h6>Camera Inactive</h6>
-                                <p class="small text-muted mb-3">Tap "Open Device Camera" or choose an image file below.</p>
+                                <p class="small text-muted mb-3">Position medicine strip, bottle, or box clearly within the frame.</p>
                                 <button class="btn btn-teal btn-sm" onclick="startCameraStream()">
                                     <i class="bi bi-camera-video-fill me-1"></i> Open Device Camera
                                 </button>
@@ -390,27 +393,57 @@
                         <!-- Camera Action Buttons -->
                         <div class="d-flex flex-wrap gap-2 mb-3">
                             <button class="btn btn-teal" id="capturePhotoBtn" onclick="captureCameraPhoto()" style="display: none;">
-                                <i class="bi bi-record-circle me-1"></i> Capture Photo
+                                <i class="bi bi-record-circle me-1"></i> Capture & Scan Photo
                             </button>
                             <button class="btn btn-secondary" id="stopCameraBtn" onclick="stopCameraStream()" style="display: none;">
                                 <i class="bi bi-stop-circle me-1"></i> Close Camera
                             </button>
                             <label class="btn btn-outline-primary mb-0">
-                                <i class="bi bi-upload me-1"></i> Upload Medicine Photo
+                                <i class="bi bi-upload me-1"></i> Upload Medicine Image
                                 <input type="file" id="ocrFileInput" accept="image/*" style="display: none;" onchange="handleImageFileUpload(event)">
                             </label>
+                            <button class="btn btn-outline-secondary btn-sm ms-auto" id="retakePhotoBtn" onclick="retakeCameraPhoto()" style="display: none;">
+                                <i class="bi bi-arrow-clockwise me-1"></i> Retake
+                            </button>
+                        </div>
+
+                        <!-- Live OCR Progress / Status Bar -->
+                        <div id="ocrStatusBar" class="alert alert-secondary py-2 small mb-3" style="display: none;">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="spinner-border spinner-border-sm text-teal" id="ocrStatusSpinner" role="status"></div>
+                                <span id="ocrStatusText">Initializing OCR engine...</span>
+                            </div>
+                            <div class="progress mt-2" style="height: 4px;">
+                                <div id="ocrProgressBar" class="progress-bar bg-teal progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                            </div>
                         </div>
 
                         <!-- Instant Test Samples for Rapid Verification -->
                         <div class="sample-pack-container p-3 rounded-3 bg-light border">
-                            <span class="small fw-bold text-secondary d-block mb-2">
-                                <i class="bi bi-magic me-1"></i> Or test with realistic medicine sample strips:
-                            </span>
-                            <div class="d-flex flex-wrap gap-2">
-                                <button class="btn btn-sm btn-outline-secondary" onclick="simulateOcrSample('Amoxicillin 500mg strip')">Amoxicillin 500mg Strip</button>
-                                <button class="btn btn-sm btn-outline-secondary" onclick="simulateOcrSample('Paracetamol 650mg blister')">Paracetamol 650mg Blister</button>
-                                <button class="btn btn-sm btn-outline-secondary" onclick="simulateOcrSample('Dextromethorphan Syrup bottle')">Cough Syrup Bottle</button>
-                                <button class="btn btn-sm btn-outline-secondary" onclick="simulateOcrSample('Cetirizine 10mg strip')">Cetirizine 10mg Strip</button>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="small fw-bold text-secondary">
+                                    <i class="bi bi-magic me-1"></i> Quick Test Images (Dynamic Detection):
+                                </span>
+                                <span class="badge bg-secondary-subtle text-secondary small">Click to test OCR</span>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2 mb-2">
+                                <button class="btn btn-sm btn-outline-primary" onclick="simulateOcrSample('Ibuprofen 400mg Film-coated Tablets strip USP')">Ibuprofen 400mg</button>
+                                <button class="btn btn-sm btn-outline-primary" onclick="simulateOcrSample('Amoxicillin and Clavulanate Potassium 625mg USP')">Augmentin / Amox 625mg</button>
+                                <button class="btn btn-sm btn-outline-primary" onclick="simulateOcrSample('Paracetamol 650 mg Dolo-650 Tablets IP')">Dolo-650 Paracetamol</button>
+                                <button class="btn btn-sm btn-outline-primary" onclick="simulateOcrSample('Cetirizine Hydrochloride 10mg Allergy relief tablets')">Cetirizine 10mg</button>
+                                <button class="btn btn-sm btn-outline-primary" onclick="simulateOcrSample('Azithromycin Tablets IP 500mg strip')">Azithromycin 500mg</button>
+                                <button class="btn btn-sm btn-outline-primary" onclick="simulateOcrSample('Metformin Hydrochloride 500mg Extended Release')">Metformin 500mg</button>
+                                <button class="btn btn-sm btn-outline-primary" onclick="simulateOcrSample('Omeprazole 20mg Delayed Release Gastro-resistant Capsules')">Omeprazole 20mg</button>
+                                <button class="btn btn-sm btn-outline-primary" onclick="simulateOcrSample('Benadryl Dextromethorphan Cough Syrup 100ml')">Cough Syrup Bottle</button>
+                            </div>
+                            <div class="pt-2 border-top">
+                                <span class="small text-muted d-block mb-1">Test non-medicine validation & rejection:</span>
+                                <div class="d-flex flex-wrap gap-2">
+                                    <button class="btn btn-sm btn-outline-danger" onclick="simulateOcrSample('Apple banana fruit basket lunch')">Food / Fruit (Unrelated)</button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="simulateOcrSample('Sunset landscape mountains beach view')">Scenery (Unrelated)</button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="simulateOcrSample('Invoice payment receipt order number 49204 total $24.99')">Document / Receipt</button>
+                                    <button class="btn btn-sm btn-outline-warning" onclick="simulateOcrSample('___BLURRY_LOW_RES___')">Blurry / Low Light</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -424,51 +457,89 @@
                         </h5>
                         <p class="text-muted small mb-3">Review, edit, and confirm the extracted medicine info before saving to your database.</p>
 
+                        <!-- Error State Banner (Unrelated object, blurry image, or no medicine detected) -->
+                        <div id="ocrErrorAlert" class="alert alert-danger py-3 shadow-sm mb-3" style="display: none;">
+                            <div class="d-flex align-items-start gap-2">
+                                <i class="bi bi-exclamation-triangle-fill fs-4 flex-shrink-0"></i>
+                                <div>
+                                    <h6 class="fw-bold mb-1" id="ocrErrorTitle">Medicine Not Found</h6>
+                                    <p class="small mb-2" id="ocrErrorMessage">No medicine-related packaging or pharmaceutical name was detected in the captured image.</p>
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-sm btn-outline-danger" onclick="retakeCameraPhoto()">
+                                            <i class="bi bi-camera me-1"></i> Capture Another Image
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-secondary" onclick="switchView('add-medicine')">
+                                            <i class="bi bi-pencil me-1"></i> Enter Manually
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Detected Raw Text Drawer -->
+                        <div id="ocrRawTextContainer" class="p-2 mb-3 bg-light rounded border font-monospace small text-muted" style="display: none; max-height: 80px; overflow-y: auto;">
+                            <strong>Extracted Image Text:</strong> <span id="ocrRawTextDisplay"></span>
+                        </div>
+
                         <div id="ocrLoadingSpinner" class="text-center py-4" style="display: none;">
                             <div class="spinner-border text-teal" role="status"></div>
-                            <p class="small text-muted mt-2">Processing medicine packaging with OCR...</p>
+                            <p class="small text-muted mt-2 fw-semibold" id="ocrLoadingSpinnerText">Processing medicine packaging with OCR...</p>
                         </div>
 
                         <div id="ocrConfirmationFormContainer">
-                            <div class="alert alert-info py-2 small d-flex align-items-center gap-2">
+                            <div class="alert alert-info py-2 small d-flex align-items-center gap-2" id="ocrInfoNotice">
                                 <i class="bi bi-info-circle-fill"></i>
-                                <span>Capture a photo or choose a sample to auto-fill this form. You can freely edit any field.</span>
+                                <span>Capture a photo or upload an image to extract medicine information. All fields are editable before saving.</span>
                             </div>
 
                             <div class="row g-2">
                                 <div class="col-md-8">
-                                    <label class="form-label small fw-semibold">Detected Name</label>
+                                    <label class="form-label small fw-semibold">Detected Name <span class="text-danger">*</span></label>
                                     <input type="text" class="form-control" id="ocrDetectedName" placeholder="Waiting for scan...">
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label small fw-semibold">Category</label>
-                                    <input type="text" class="form-control" id="ocrDetectedCategory" placeholder="Tablet/Capsule">
+                                    <label class="form-label small fw-semibold">Category <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="ocrDetectedCategory">
+                                        <option value="Tablet">Tablet</option>
+                                        <option value="Capsule">Capsule</option>
+                                        <option value="Syrup">Syrup</option>
+                                        <option value="Injection">Injection</option>
+                                        <option value="Drops">Drops</option>
+                                        <option value="Inhaler">Inhaler</option>
+                                        <option value="Ointment">Ointment</option>
+                                    </select>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label small fw-semibold">Dosage</label>
+                                    <label class="form-label small fw-semibold">Dosage <span class="text-danger">*</span></label>
                                     <input type="text" class="form-control" id="ocrDetectedDosage" placeholder="e.g., 500mg">
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label small fw-semibold">Frequency</label>
-                                    <input type="text" class="form-control" id="ocrDetectedFrequency" placeholder="Twice Daily">
+                                    <label class="form-label small fw-semibold">Frequency <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="ocrDetectedFrequency" onchange="suggestOcrReminderTime(this.value)">
+                                        <option value="Once Daily">Once Daily</option>
+                                        <option value="Twice Daily">Twice Daily</option>
+                                        <option value="Thrice Daily">Thrice Daily</option>
+                                        <option value="Once Nightly">Once Nightly</option>
+                                        <option value="As Needed">As Needed</option>
+                                    </select>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label small fw-semibold">Daily Dosage</label>
-                                    <input type="text" class="form-control" id="ocrDetectedDailyDosage" placeholder="2 Doses per day">
+                                    <input type="text" class="form-control" id="ocrDetectedDailyDosage" placeholder="e.g., 2 Doses per day">
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label small fw-semibold">Reminder Time</label>
+                                    <label class="form-label small fw-semibold">Reminder Time <span class="text-danger">*</span></label>
                                     <input type="text" class="form-control font-monospace" id="ocrDetectedTime" placeholder="08:00 AM">
                                 </div>
                                 <div class="col-12">
-                                    <label class="form-label small fw-semibold">Instructions</label>
+                                    <label class="form-label small fw-semibold">Instructions & Meal Precautions</label>
                                     <input type="text" class="form-control" id="ocrDetectedInstructions" placeholder="Take after meals">
                                 </div>
                             </div>
 
                             <div class="mt-4 pt-3 border-top d-flex gap-2">
-                                <button class="btn btn-success flex-fill fw-semibold" onclick="confirmAndSaveOcrMedicine()">
-                                    <i class="bi bi-save me-1"></i> Confirm & Save to Database
+                                <button class="btn btn-success flex-fill fw-semibold" id="ocrSaveBtn" onclick="confirmAndSaveOcrMedicine()" disabled>
+                                    <i class="bi bi-check-circle me-1"></i> Confirm & Save to Database
                                 </button>
                                 <button class="btn btn-outline-secondary" onclick="switchView('add-medicine')">
                                     Switch to Manual Entry

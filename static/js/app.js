@@ -491,13 +491,20 @@ let mediaStream = null;
 async function startCameraStream() {
     const video = document.getElementById('cameraVideo');
     const placeholder = document.getElementById('cameraPlaceholder');
+    const preview = document.getElementById('capturedImagePreview');
     const captureBtn = document.getElementById('capturePhotoBtn');
     const stopBtn = document.getElementById('stopCameraBtn');
+    const retakeBtn = document.getElementById('retakePhotoBtn');
     const overlay = document.getElementById('scannerOverlay');
+
+    // Reset error alerts and preview
+    hideOcrErrorAlert();
+    if (preview) preview.style.display = 'none';
+    if (retakeBtn) retakeBtn.style.display = 'none';
 
     try {
         mediaStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment' }
+            video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
         });
         video.srcObject = mediaStream;
         video.style.display = 'block';
@@ -507,7 +514,7 @@ async function startCameraStream() {
         overlay.style.display = 'block';
     } catch (err) {
         console.error("Camera access error:", err);
-        alert("Could not access device camera. Please grant camera permission or use the 'Upload Medicine Photo' or sample buttons.");
+        alert("Could not access device camera. Please grant camera permission or use 'Upload Medicine Image' or quick sample cards.");
     }
 }
 
@@ -521,17 +528,31 @@ function stopCameraStream() {
     const captureBtn = document.getElementById('capturePhotoBtn');
     const stopBtn = document.getElementById('stopCameraBtn');
     const overlay = document.getElementById('scannerOverlay');
+    const preview = document.getElementById('capturedImagePreview');
 
     if (video) video.style.display = 'none';
-    if (placeholder) placeholder.style.display = 'flex';
     if (captureBtn) captureBtn.style.display = 'none';
     if (stopBtn) stopBtn.style.display = 'none';
     if (overlay) overlay.style.display = 'none';
+    if (placeholder && (!preview || preview.style.display === 'none')) {
+        placeholder.style.display = 'flex';
+    }
 }
 
-function captureCameraPhoto() {
+function retakeCameraPhoto() {
+    hideOcrErrorAlert();
+    const preview = document.getElementById('capturedImagePreview');
+    const retakeBtn = document.getElementById('retakePhotoBtn');
+    if (preview) preview.style.display = 'none';
+    if (retakeBtn) retakeBtn.style.display = 'none';
+    startCameraStream();
+}
+
+async function captureCameraPhoto() {
     const video = document.getElementById('cameraVideo');
     const canvas = document.getElementById('cameraCanvas');
+    const preview = document.getElementById('capturedImagePreview');
+    const retakeBtn = document.getElementById('retakePhotoBtn');
     if (!video || !canvas) return;
 
     canvas.width = video.videoWidth || 640;
@@ -539,78 +560,234 @@ function captureCameraPhoto() {
     const ctx = canvas.getContext('2d');
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Stop camera after snapshot
-    stopCameraStream();
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
 
-    // Trigger OCR parsing
-    processOcrRecognition("Captured camera photo - Amoxicillin 500mg prescription packaging");
+    // Stop camera and show frozen snapshot
+    stopCameraStream();
+    if (preview) {
+        preview.src = dataUrl;
+        preview.style.display = 'block';
+    }
+    if (retakeBtn) retakeBtn.style.display = 'inline-block';
+
+    // Run client-side OCR on the captured image using Tesseract.js
+    await runOcrOnImageSource(dataUrl, "Camera Snapshot");
 }
 
-function handleImageFileUpload(event) {
+async function handleImageFileUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
 
-    processOcrRecognition(file.name);
+    stopCameraStream();
+    hideOcrErrorAlert();
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        const dataUrl = e.target.result;
+        const preview = document.getElementById('capturedImagePreview');
+        const retakeBtn = document.getElementById('retakePhotoBtn');
+        const placeholder = document.getElementById('cameraPlaceholder');
+
+        if (placeholder) placeholder.style.display = 'none';
+        if (preview) {
+            preview.src = dataUrl;
+            preview.style.display = 'block';
+        }
+        if (retakeBtn) retakeBtn.style.display = 'inline-block';
+
+        await runOcrOnImageSource(dataUrl, file.name);
+    };
+    reader.readAsDataURL(file);
 }
 
-function simulateOcrSample(sampleName) {
-    processOcrRecognition(sampleName);
+async function simulateOcrSample(sampleDescription) {
+    stopCameraStream();
+    hideOcrErrorAlert();
+
+    const preview = document.getElementById('capturedImagePreview');
+    const placeholder = document.getElementById('cameraPlaceholder');
+    const retakeBtn = document.getElementById('retakePhotoBtn');
+
+    if (placeholder) placeholder.style.display = 'none';
+    if (preview) {
+        // Draw sample placeholder on canvas
+        const canvas = document.getElementById('cameraCanvas');
+        canvas.width = 600;
+        canvas.height = 300;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = sampleDescription.includes('BLURRY') ? '#444' : '#0f2b38';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 22px Plus Jakarta Sans, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(sampleDescription, 300, 150);
+        preview.src = canvas.toDataURL();
+        preview.style.display = 'block';
+    }
+    if (retakeBtn) retakeBtn.style.display = 'inline-block';
+
+    // Process sample directly
+    await processOcrRecognition(sampleDescription, sampleDescription);
 }
 
-async function processOcrRecognition(textIdentifier) {
+async function runOcrOnImageSource(imageSource, filename) {
+    const statusBar = document.getElementById('ocrStatusBar');
+    const statusText = document.getElementById('ocrStatusText');
+    const progressBar = document.getElementById('ocrProgressBar');
+    const spinner = document.getElementById('ocrLoadingSpinner');
+
+    if (statusBar) statusBar.style.display = 'block';
+    if (spinner) spinner.style.display = 'block';
+    hideOcrErrorAlert();
+
+    let recognizedText = "";
+
+    // Check if Tesseract.js is loaded in browser
+    if (typeof Tesseract !== 'undefined') {
+        try {
+            if (statusText) statusText.innerText = "Analyzing image and reading packaging text...";
+            if (progressBar) progressBar.style.width = "40%";
+
+            const result = await Tesseract.recognize(imageSource, 'eng', {
+                logger: m => {
+                    if (m.status === 'recognizing text' && m.progress) {
+                        const pct = Math.round(m.progress * 100);
+                        if (progressBar) progressBar.style.width = `${pct}%`;
+                        if (statusText) statusText.innerText = `Extracting medicine text: ${pct}%`;
+                    }
+                }
+            });
+
+            recognizedText = (result.data && result.data.text) ? result.data.text.trim() : "";
+        } catch (tessErr) {
+            console.warn("Tesseract OCR fallback to filename parsing:", tessErr);
+            recognizedText = filename;
+        }
+    } else {
+        recognizedText = filename;
+    }
+
+    if (statusBar) statusBar.style.display = 'none';
+    if (progressBar) progressBar.style.width = "0%";
+
+    // Pass the actual recognized image text to backend for validation and dynamic field population
+    await processOcrRecognition(recognizedText || filename, filename);
+}
+
+function showOcrErrorAlert(title, message) {
+    const alertBox = document.getElementById('ocrErrorAlert');
+    const titleEl = document.getElementById('ocrErrorTitle');
+    const msgEl = document.getElementById('ocrErrorMessage');
+    const saveBtn = document.getElementById('ocrSaveBtn');
+    const rawContainer = document.getElementById('ocrRawTextContainer');
+
+    if (titleEl) titleEl.innerText = title;
+    if (msgEl) msgEl.innerText = message;
+    if (alertBox) alertBox.style.display = 'block';
+    if (saveBtn) saveBtn.disabled = true;
+    if (rawContainer) rawContainer.style.display = 'none';
+
+    // Clear detected fields
+    document.getElementById('ocrDetectedName').value = '';
+    document.getElementById('ocrDetectedDosage').value = '';
+    document.getElementById('ocrDetectedDailyDosage').value = '';
+    document.getElementById('ocrDetectedTime').value = '';
+    document.getElementById('ocrDetectedInstructions').value = '';
+
+    speakUtterance(`${title}. ${message}`);
+}
+
+function hideOcrErrorAlert() {
+    const alertBox = document.getElementById('ocrErrorAlert');
+    if (alertBox) alertBox.style.display = 'none';
+}
+
+function suggestOcrReminderTime(frequency) {
+    const timeInput = document.getElementById('ocrDetectedTime');
+    if (!timeInput) return;
+    if (frequency === 'Once Daily') timeInput.value = '08:00 AM';
+    else if (frequency === 'Twice Daily') timeInput.value = '08:00 AM, 08:00 PM';
+    else if (frequency === 'Thrice Daily') timeInput.value = '08:00 AM, 01:00 PM, 08:00 PM';
+    else if (frequency === 'Once Nightly') timeInput.value = '08:00 PM';
+    else if (frequency === 'As Needed') timeInput.value = 'As Needed';
+}
+
+async function processOcrRecognition(textContent, filename) {
     const spinner = document.getElementById('ocrLoadingSpinner');
     const container = document.getElementById('ocrConfirmationFormContainer');
+    const saveBtn = document.getElementById('ocrSaveBtn');
+    const rawContainer = document.getElementById('ocrRawTextContainer');
+    const rawTextDisplay = document.getElementById('ocrRawTextDisplay');
 
+    hideOcrErrorAlert();
     if (spinner) spinner.style.display = 'block';
-    if (container) container.style.display = 'none';
+    if (container) container.style.display = 'block';
 
     try {
         const res = await fetch('/api/scan-ocr', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filename: textIdentifier, text: textIdentifier })
+            body: JSON.stringify({ text: textContent, filename: filename })
         });
         const data = await res.json();
 
         if (spinner) spinner.style.display = 'none';
-        if (container) container.style.display = 'block';
+
+        if (!data.success) {
+            // Validation failed or non-medicine detected
+            const errTitle = data.error_type === "UNCLEAR_IMAGE" ? "Unclear / Blurry Image" : "Medicine Not Found";
+            showOcrErrorAlert(errTitle, data.message || "No valid medicine was detected.");
+            return;
+        }
 
         if (data.success && data.extracted) {
             const ext = data.extracted;
             appState.pendingOcrMedicine = ext;
 
+            // Fill all fields dynamically from detected medicine info
             document.getElementById('ocrDetectedName').value = ext.name || '';
             document.getElementById('ocrDetectedCategory').value = ext.category || 'Tablet';
             document.getElementById('ocrDetectedDosage').value = ext.dosage || '';
-            document.getElementById('ocrDetectedFrequency').value = ext.frequency || '';
+            document.getElementById('ocrDetectedFrequency').value = ext.frequency || 'Once Daily';
             document.getElementById('ocrDetectedDailyDosage').value = ext.daily_dosage || ext.dosage;
             document.getElementById('ocrDetectedTime').value = ext.reminder_time || '08:00 AM';
             document.getElementById('ocrDetectedInstructions').value = ext.instructions || '';
 
-            speakUtterance(`Detected ${ext.name}. Please review the details and confirm.`);
+            // Show raw extracted text snippet for user transparency
+            if (ext.raw_detected_text && rawContainer && rawTextDisplay) {
+                rawTextDisplay.innerText = ext.raw_detected_text;
+                rawContainer.style.display = 'block';
+            }
+
+            // Enable save button
+            if (saveBtn) saveBtn.disabled = false;
+
+            speakUtterance(`Detected ${ext.name}. Please review detected dosage and tap confirm to save.`);
         }
     } catch (e) {
         if (spinner) spinner.style.display = 'none';
-        if (container) container.style.display = 'block';
-        alert("OCR processing failed. Please try manual entry.");
+        showOcrErrorAlert("OCR Scan Error", "An error occurred while connecting to the OCR verification service. Please try again or use manual entry.");
     }
 }
 
 async function confirmAndSaveOcrMedicine() {
     const name = document.getElementById('ocrDetectedName').value.trim();
-    if (!name) {
-        alert("Please enter a medicine name.");
+    const dosage = document.getElementById('ocrDetectedDosage').value.trim();
+    const reminder_time = document.getElementById('ocrDetectedTime').value.trim();
+
+    if (!name || !dosage || !reminder_time) {
+        alert("Please ensure Medicine Name, Dosage, and Reminder Time are entered before saving.");
         return;
     }
 
     const payload = {
         name: name,
         category: document.getElementById('ocrDetectedCategory').value.trim() || 'Tablet',
-        dosage: document.getElementById('ocrDetectedDosage').value.trim() || '1 dose',
+        dosage: dosage,
         frequency: document.getElementById('ocrDetectedFrequency').value.trim() || 'Once Daily',
-        daily_dosage: document.getElementById('ocrDetectedDailyDosage').value.trim() || '1 dose per day',
-        reminder_time: document.getElementById('ocrDetectedTime').value.trim() || '08:00 AM',
-        instructions: document.getElementById('ocrDetectedInstructions').value.trim() || 'Take after meals'
+        daily_dosage: document.getElementById('ocrDetectedDailyDosage').value.trim() || dosage,
+        reminder_time: reminder_time,
+        instructions: document.getElementById('ocrDetectedInstructions').value.trim() || 'Take after meals with water'
     };
 
     try {
@@ -625,9 +802,11 @@ async function confirmAndSaveOcrMedicine() {
             await loadMedicines();
             await loadDailySummary();
             switchView('medicine-list');
+        } else {
+            alert(data.error || "Could not save medicine.");
         }
     } catch (e) {
-        alert("Failed to save detected medicine.");
+        alert("Failed to save detected medicine to database.");
     }
 }
 
