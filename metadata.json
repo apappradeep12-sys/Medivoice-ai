@@ -1,0 +1,6 @@
+{
+  "name": "MediVoice AI",
+  "description": "Medicine Reminder and Voice Assistant with live digital clock, camera OCR scanner, sound & voice alerts, dosage tracking, history, symptom suggestions, and AI voice assistant.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
