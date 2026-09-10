@@ -3,243 +3,937 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MediVoice AI – Medicine Reminder & Voice Assistant</title>
+    <title>MediVoice AI – Medicine Reminder and Voice Assistant</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <!-- Custom Healthcare Styling -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
-    <!-- NAV HEADER -->
-    <header class="app-header">
-        <div class="header-container">
-            <div class="brand">
-                <div class="brand-badge">💊</div>
+    <!-- TOP SAFETY DISCLAIMER BANNER -->
+    <div class="safety-disclaimer-banner text-center py-2 px-3">
+        <div class="container-fluid d-flex align-items-center justify-content-center gap-2">
+            <i class="bi bi-shield-exclamation text-warning fs-5"></i>
+            <span class="small font-medium">
+                <strong>Medical Notice:</strong> {{ disclaimer }}
+            </span>
+        </div>
+    </div>
+
+    <!-- MAIN NAVBAR -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom sticky-top py-2 px-3 shadow-sm">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center gap-2" href="#">
+                <div class="brand-logo-icon">💊</div>
                 <div>
-                    <h1>MediVoice AI</h1>
-                    <span class="subtext">Prescription & Voice Assistant</span>
+                    <span class="brand-title">MediVoice <span class="brand-ai">AI</span></span>
+                    <span class="d-block brand-subtitle">Clinical Medicine Reminder & Voice Assistant</span>
                 </div>
-            </div>
-            <div class="user-status" id="headerUserStatus">
-                <span class="status-indicator"></span>
-                <span id="userStatusText">Signed Out</span>
-                <button class="btn btn-outline" id="authActionBtn" onclick="toggleAuthModal()">Sign In</button>
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#topNavCollapse">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="topNavCollapse">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0 nav-pills ms-lg-3 gap-1" id="mainNavigationTabs">
+                    <li class="nav-item">
+                        <button class="nav-link active" onclick="switchView('dashboard')">
+                            <i class="bi bi-grid-1x2-fill me-1"></i> Dashboard
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" onclick="switchView('add-medicine')">
+                            <i class="bi bi-plus-circle-fill me-1"></i> Add Medicine
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" onclick="switchView('camera-scanner')">
+                            <i class="bi bi-camera-fill me-1"></i> Camera Scanner
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" onclick="switchView('medicine-list')">
+                            <i class="bi bi-capsule-pill me-1"></i> Medicine List
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" onclick="switchView('daily-dosage')">
+                            <i class="bi bi-calendar-check me-1"></i> Daily Dosage
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" onclick="switchView('reminders')">
+                            <i class="bi bi-alarm-fill me-1"></i> Reminders
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" onclick="switchView('history')">
+                            <i class="bi bi-clock-history me-1"></i> Medicine History
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" onclick="switchView('chat-assistant')">
+                            <i class="bi bi-chat-dots-fill me-1"></i> Chat Assistant
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" onclick="switchView('voice-assistant')">
+                            <i class="bi bi-mic-fill me-1"></i> Voice Assistant
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" onclick="switchView('profile')">
+                            <i class="bi bi-person-circle me-1"></i> Profile
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="d-flex align-items-center gap-3">
+                    <button class="btn btn-sm btn-outline-primary position-relative" onclick="requestNotificationPermission()" title="Enable Browser Alerts">
+                        <i class="bi bi-bell-fill"></i>
+                        <span id="notifStatusBadge" class="badge bg-success ms-1">Active</span>
+                    </button>
+                    <div class="user-profile-badge d-flex align-items-center gap-2">
+                        <div class="avatar-circle">AM</div>
+                        <span class="user-display-name fw-semibold small" id="currentUserDisplay">Alex Mercer</span>
+                        <button class="btn btn-sm btn-light border ms-1" onclick="openLoginModal()" id="authButton">Account</button>
+                    </div>
+                </div>
             </div>
         </div>
-    </header>
+    </nav>
 
-    <main class="main-container">
+    <!-- MAIN BODY CONTAINER -->
+    <main class="container-fluid py-4 px-md-4">
 
-        <!-- LIVE DIGITAL CLOCK & ADHERENCE BANNER -->
-        <section class="clock-banner">
-            <div class="clock-content">
-                <div class="clock-meta">
-                    <span class="live-pill">● LIVE CLOCK</span>
-                    <h3 id="currentDate">Wednesday, September 9, 2026</h3>
+        <!-- LIVE BANNER & ACTIVE ALERTS -->
+        <div class="row g-3 mb-4">
+            <!-- Clock & Live Adherence -->
+            <div class="col-lg-8">
+                <div class="card healthcare-hero-card border-0 text-white p-4 shadow-sm">
+                    <div class="row align-items-center">
+                        <div class="col-md-7">
+                            <span class="badge bg-white text-teal px-3 py-1 rounded-pill mb-2 fw-bold">
+                                <span class="pulse-dot"></span> LIVE SYSTEM CLOCK
+                            </span>
+                            <h2 class="display-6 fw-bold font-monospace" id="digitalClockDisplay">08:00:00 AM</h2>
+                            <p class="mb-0 opacity-90" id="currentDateDisplay">Thursday, September 10, 2026</p>
+                        </div>
+                        <div class="col-md-5 mt-3 mt-md-0 border-start-md border-white-50 ps-md-4">
+                            <div class="adherence-stat-box p-3 rounded-3 bg-dark-teal">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="small fw-semibold">Daily Adherence Rate</span>
+                                    <span class="fw-bold" id="headerAdherencePercent">67%</span>
+                                </div>
+                                <div class="progress mb-2" style="height: 8px;">
+                                    <div class="progress-bar bg-success" id="headerAdherenceBar" style="width: 67%;"></div>
+                                </div>
+                                <div class="d-flex justify-content-between small opacity-75">
+                                    <span id="headerTakenSummary">2 of 3 Doses Taken</span>
+                                    <span>🔥 5-Day Streak</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="digital-time" id="digitalClock">12:00:00 PM</div>
             </div>
-            <div class="adherence-card">
-                <h4>Today's Dosage Adherence</h4>
-                <div class="progress-bar-container">
-                    <div class="progress-bar-fill" id="adherenceBar" style="width: 33%;"></div>
-                </div>
-                <div class="adherence-labels">
-                    <span id="adherenceRatio">1 of 3 Doses Taken</span>
-                    <span class="streak-badge">🔥 5-Day Streak</span>
-                </div>
-            </div>
-        </section>
 
-        <!-- ACTIVE REMINDER ALERT -->
-        <div class="alert-box" id="reminderAlertBox">
-            <div class="alert-icon">⏰</div>
-            <div class="alert-details">
-                <span class="alert-badge">MEDICINE DUE NOW</span>
-                <h3 id="alertMedName">Amoxicillin 500mg</h3>
-                <p id="alertMedAdvice">Take 1 capsule after breakfast with warm water.</p>
-            </div>
-            <div class="alert-actions">
-                <button class="btn btn-success" onclick="recordDose('Amoxicillin 500mg', 'TAKEN')">✓ Taken</button>
-                <button class="btn btn-warning" onclick="recordDose('Amoxicillin 500mg', 'SNOOZED')">⏰ Snooze</button>
-                <button class="btn btn-secondary" onclick="speakAlert()">🔊 Speak</button>
+            <!-- Due Now Notification Prompt -->
+            <div class="col-lg-4">
+                <div class="card h-100 border-warning border-2 bg-light-warning shadow-sm" id="activeReminderCard">
+                    <div class="card-body d-flex flex-column justify-content-between p-3">
+                        <div class="d-flex align-items-start gap-3">
+                            <div class="alarm-bell-icon">
+                                <i class="bi bi-bell-fill text-warning fs-2"></i>
+                            </div>
+                            <div>
+                                <span class="badge bg-warning text-dark fw-bold mb-1">SCHEDULED DOSE DUE</span>
+                                <h5 class="fw-bold mb-1" id="promptMedName">Amoxicillin 500mg</h5>
+                                <p class="small text-muted mb-0" id="promptMedDetails">1 Capsule (500mg) • Scheduled: 08:00 AM</p>
+                                <p class="small text-secondary mt-1 mb-0" id="promptMedInstructions">Take after meals with water</p>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2 mt-3">
+                            <button class="btn btn-success btn-sm flex-fill fw-semibold" onclick="handleDoseAction('TAKEN')">
+                                <i class="bi bi-check-circle me-1"></i> Take
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm flex-fill fw-semibold" onclick="handleDoseAction('SKIPPED')">
+                                <i class="bi bi-x-circle me-1"></i> Skip
+                            </button>
+                            <button class="btn btn-warning btn-sm flex-fill fw-semibold text-dark" onclick="handleDoseAction('SNOOZED')">
+                                <i class="bi bi-clock me-1"></i> Snooze (10m)
+                            </button>
+                            <button class="btn btn-light border btn-sm" onclick="speakCurrentReminder()" title="Listen to Reminder">
+                                <i class="bi bi-volume-up-fill text-teal"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- MAIN TABBED INTERFACE -->
-        <nav class="section-tabs">
-            <button class="tab-btn active" onclick="switchTab('dashboard')">📋 Today's Medicines</button>
-            <button class="tab-btn" onclick="switchTab('scanner')">📷 Camera OCR Scanner</button>
-            <button class="tab-btn" onclick="switchTab('voice')">🎙️ Voice Assistant</button>
-            <button class="tab-btn" onclick="switchTab('history')">📜 History Log</button>
-        </nav>
-
-        <!-- TAB 1: MEDICINE SCHEDULE -->
-        <section id="tab-dashboard" class="tab-panel active">
-            <div class="panel-header">
-                <h2>Today's Scheduled Dosages</h2>
-                <button class="btn btn-primary" onclick="openAddMedModal()">+ Add New Medicine</button>
-            </div>
-            <div class="medicines-grid" id="medicinesContainer">
-                <!-- Populated via JS -->
-            </div>
-        </section>
-
-        <!-- TAB 2: CAMERA OCR SCANNER -->
-        <section id="tab-scanner" class="tab-panel">
-            <div class="panel-header">
-                <h2>Prescription & Strip Scanner</h2>
-                <p>Scan your medicine blister pack or bottle to automatically extract medication details.</p>
-            </div>
-            <div class="scanner-card">
-                <div class="scanner-dropzone">
-                    <div class="scanner-icon">📷</div>
-                    <h3>Take Photo or Upload Medicine Image</h3>
-                    <p>Supported: Strip, Blister Pack, Bottle Label</p>
-                    <div class="scanner-btn-group">
-                        <button class="btn btn-primary" onclick="simulateOcrScan('amoxicillin')">Scan Amoxicillin Strip</button>
-                        <button class="btn btn-primary" onclick="simulateOcrScan('paracetamol')">Scan Paracetamol Strip</button>
-                        <button class="btn btn-primary" onclick="simulateOcrScan('cough_syrup')">Scan Syrup Bottle</button>
+        <!-- ==================== VIEW 1: DASHBOARD ==================== -->
+        <section id="view-dashboard" class="app-view active">
+            <div class="row g-4">
+                <!-- Summary Quick Cards -->
+                <div class="col-6 col-md-3">
+                    <div class="card border-0 shadow-sm p-3 stat-card stat-teal">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="text-muted small fw-semibold">Total Scheduled</span>
+                                <h3 class="fw-bold my-1" id="dashTotalMeds">3</h3>
+                                <span class="badge bg-teal-subtle text-teal">Active Regimen</span>
+                            </div>
+                            <div class="stat-icon"><i class="bi bi-capsule"></i></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card border-0 shadow-sm p-3 stat-card stat-success">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="text-muted small fw-semibold">Doses Taken</span>
+                                <h3 class="fw-bold my-1 text-success" id="dashTakenDoses">1</h3>
+                                <span class="badge bg-success-subtle text-success">Confirmed</span>
+                            </div>
+                            <div class="stat-icon"><i class="bi bi-check2-circle"></i></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card border-0 shadow-sm p-3 stat-card stat-warning">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="text-muted small fw-semibold">Pending Doses</span>
+                                <h3 class="fw-bold my-1 text-warning" id="dashPendingDoses">2</h3>
+                                <span class="badge bg-warning-subtle text-warning">Awaiting Time</span>
+                            </div>
+                            <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card border-0 shadow-sm p-3 stat-card stat-secondary">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="text-muted small fw-semibold">Skipped / Missed</span>
+                                <h3 class="fw-bold my-1 text-secondary" id="dashSkippedDoses">0</h3>
+                                <span class="badge bg-light text-dark">History Tracked</span>
+                            </div>
+                            <div class="stat-icon"><i class="bi bi-x-octagon"></i></div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="ocr-preview" id="ocrPreviewBox" style="display: none;">
-                    <h4>✨ OCR Extraction Detected:</h4>
-                    <pre id="ocrResultText"></pre>
-                    <button class="btn btn-success" id="autoFillBtn" onclick="autoFillMedicineForm()">Auto-Fill Form & Save</button>
-                </div>
-            </div>
-        </section>
+                <!-- Next Up & Quick Action Strip -->
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm p-3 bg-white">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="fw-bold mb-0 text-dark-teal">
+                                <i class="bi bi-clock-fill me-2 text-teal"></i> Today's Scheduled Timeline
+                            </h5>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-sm btn-primary" onclick="switchView('add-medicine')">
+                                    <i class="bi bi-plus-lg me-1"></i> Add Manually
+                                </button>
+                                <button class="btn btn-sm btn-outline-teal" onclick="switchView('camera-scanner')">
+                                    <i class="bi bi-camera me-1"></i> Add with Camera
+                                </button>
+                            </div>
+                        </div>
 
-        <!-- TAB 3: VOICE ASSISTANT -->
-        <section id="tab-voice" class="tab-panel">
-            <div class="panel-header">
-                <h2>MediVoice Clinical Voice Assistant</h2>
-                <p>Ask about your schedule, logged doses, or clinical reminders.</p>
-            </div>
-            <div class="voice-assistant-card">
-                <div class="voice-chat-box" id="voiceChatBox">
-                    <div class="chat-message assistant">
-                        <strong>MediVoice AI:</strong> Hello! I am your clinical voice companion. Ask me: "What are my medicines today?" or tap any quick prompt below.
+                        <div class="row g-3" id="dashMedicineCardsRow">
+                            <!-- Populated dynamically via JS -->
+                        </div>
                     </div>
                 </div>
-                <div class="quick-prompts">
-                    <button class="prompt-chip" onclick="sendVoiceQuery('What are my medicines today?')">What are my medicines today?</button>
-                    <button class="prompt-chip" onclick="sendVoiceQuery('Did I take my morning dose?')">Did I take my morning dose?</button>
-                    <button class="prompt-chip" onclick="sendVoiceQuery('What can I take for a mild headache?')">Headache suggestion</button>
-                </div>
-                <div class="chat-input-row">
-                    <input type="text" id="voiceQueryInput" placeholder="Type or ask MediVoice a question...">
-                    <button class="btn btn-primary" onclick="submitVoiceInput()">Send</button>
-                    <button class="btn btn-voice" onclick="startMicRecording()">🎙️ Speak</button>
+            </div>
+        </section>
+
+        <!-- ==================== VIEW 2: ADD MEDICINE MANUALLY ==================== -->
+        <section id="view-add-medicine" class="app-view">
+            <div class="row justify-content-center">
+                <div class="col-lg-8">
+                    <div class="card border-0 shadow-sm p-4">
+                        <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
+                            <div class="p-2 bg-teal-subtle text-teal rounded-3">
+                                <i class="bi bi-pencil-square fs-4"></i>
+                            </div>
+                            <div>
+                                <h4 class="fw-bold mb-0">Add Medicine Manually</h4>
+                                <p class="text-muted small mb-0">Enter full medicine schedule with 12-hour clock reminder times.</p>
+                            </div>
+                        </div>
+
+                        <form id="manualAddMedicineForm" onsubmit="handleManualMedicineSubmit(event)">
+                            <div class="row g-3">
+                                <div class="col-md-8">
+                                    <label class="form-label fw-semibold">Medicine Name <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="formMedName" placeholder="e.g., Amoxicillin 500mg, Paracetamol 650mg" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold">Category <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="formMedCategory">
+                                        <option value="Tablet" selected>Tablet</option>
+                                        <option value="Capsule">Capsule</option>
+                                        <option value="Syrup">Syrup</option>
+                                        <option value="Injection">Injection</option>
+                                        <option value="Drops">Eye/Ear Drops</option>
+                                        <option value="Inhaler">Inhaler</option>
+                                        <option value="Ointment">Topical Ointment</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Single Dose Amount <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="formMedDosage" placeholder="e.g., 1 Tablet (650mg), 10 ml, 2 Puffs" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Daily Dosage (Total per day)</label>
+                                    <input type="text" class="form-control" id="formMedDailyDosage" placeholder="e.g., 2 Tablets per day, 20 ml total">
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Frequency <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="formMedFrequency" onchange="suggestReminderTimes(this.value)">
+                                        <option value="Once Daily">Once Daily (e.g. 08:00 AM)</option>
+                                        <option value="Twice Daily">Twice Daily (08:00 AM, 08:00 PM)</option>
+                                        <option value="Thrice Daily">Thrice Daily (08:00 AM, 01:00 PM, 08:00 PM)</option>
+                                        <option value="Every 4 Hours">Every 4 Hours</option>
+                                        <option value="Once Nightly">Once Nightly (09:00 PM)</option>
+                                        <option value="As Needed">As Needed (PRN)</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Reminder Time (Normal Clock Format) <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control font-monospace" id="formMedReminderTime" placeholder="e.g., 08:00 AM, 01:00 PM, 08:00 PM" required>
+                                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">Presets</button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li><a class="dropdown-item" href="javascript:void(0)" onclick="setTimePreset('08:00 AM')">08:00 AM (Morning)</a></li>
+                                            <li><a class="dropdown-item" href="javascript:void(0)" onclick="setTimePreset('01:00 PM')">01:00 PM (Afternoon)</a></li>
+                                            <li><a class="dropdown-item" href="javascript:void(0)" onclick="setTimePreset('08:00 PM')">08:00 PM (Dinner)</a></li>
+                                            <li><a class="dropdown-item" href="javascript:void(0)" onclick="setTimePreset('10:00 PM')">10:00 PM (Bedtime)</a></li>
+                                        </ul>
+                                    </div>
+                                    <div class="form-text">Example formats: <code>08:00 AM</code>, <code>01:00 PM</code>, <code>08:00 PM</code></div>
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label fw-semibold">Meal Instructions & Precautions</label>
+                                    <input type="text" class="form-control" id="formMedInstructions" placeholder="e.g., Take after meals with a full glass of water; do not crush">
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Start Date</label>
+                                    <input type="date" class="form-control" id="formMedStartDate">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">End Date / Duration</label>
+                                    <input type="date" class="form-control" id="formMedEndDate">
+                                </div>
+                            </div>
+
+                            <div class="mt-4 pt-3 border-top d-flex justify-content-end gap-2">
+                                <button type="reset" class="btn btn-light">Clear</button>
+                                <button type="submit" class="btn btn-primary px-4 fw-semibold">
+                                    <i class="bi bi-check-lg me-1"></i> Save Medicine to Database
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
         </section>
 
-        <!-- TAB 4: DOSAGE HISTORY -->
-        <section id="tab-history" class="tab-panel">
-            <div class="panel-header">
-                <h2>Dosage Compliance Log</h2>
-                <p>Complete audit history of taken, skipped, and snoozed doses.</p>
+        <!-- ==================== VIEW 3: ADD MEDICINE USING CAMERA / OCR ==================== -->
+        <section id="view-camera-scanner" class="app-view">
+            <div class="row g-4">
+                <div class="col-lg-6">
+                    <div class="card border-0 shadow-sm p-4 h-100">
+                        <div class="d-flex align-items-center gap-2 mb-3">
+                            <div class="p-2 bg-teal-subtle text-teal rounded-3">
+                                <i class="bi bi-camera-fill fs-4"></i>
+                            </div>
+                            <div>
+                                <h4 class="fw-bold mb-0">Add Medicine with Camera</h4>
+                                <p class="text-muted small mb-0">Capture medicine strip, bottle label, or prescription packaging.</p>
+                            </div>
+                        </div>
+
+                        <!-- Live Camera Preview Box -->
+                        <div class="camera-viewport-container mb-3 position-relative rounded-3 overflow-hidden bg-dark text-center">
+                            <video id="cameraVideo" autoplay playsinline class="w-100 h-100" style="object-fit: cover; min-height: 280px; display: none;"></video>
+                            <canvas id="cameraCanvas" style="display: none;"></canvas>
+                            
+                            <div id="cameraPlaceholder" class="p-5 text-white d-flex flex-column align-items-center justify-content-center" style="min-height: 280px;">
+                                <i class="bi bi-camera-video fs-1 text-teal mb-2"></i>
+                                <h6>Camera Inactive</h6>
+                                <p class="small text-muted mb-3">Tap "Open Device Camera" or choose an image file below.</p>
+                                <button class="btn btn-teal btn-sm" onclick="startCameraStream()">
+                                    <i class="bi bi-camera-video-fill me-1"></i> Open Device Camera
+                                </button>
+                            </div>
+
+                            <div class="scanner-crosshair" id="scannerOverlay" style="display: none;">
+                                <div class="scanner-laser"></div>
+                            </div>
+                        </div>
+
+                        <!-- Camera Action Buttons -->
+                        <div class="d-flex flex-wrap gap-2 mb-3">
+                            <button class="btn btn-teal" id="capturePhotoBtn" onclick="captureCameraPhoto()" style="display: none;">
+                                <i class="bi bi-record-circle me-1"></i> Capture Photo
+                            </button>
+                            <button class="btn btn-secondary" id="stopCameraBtn" onclick="stopCameraStream()" style="display: none;">
+                                <i class="bi bi-stop-circle me-1"></i> Close Camera
+                            </button>
+                            <label class="btn btn-outline-primary mb-0">
+                                <i class="bi bi-upload me-1"></i> Upload Medicine Photo
+                                <input type="file" id="ocrFileInput" accept="image/*" style="display: none;" onchange="handleImageFileUpload(event)">
+                            </label>
+                        </div>
+
+                        <!-- Instant Test Samples for Rapid Verification -->
+                        <div class="sample-pack-container p-3 rounded-3 bg-light border">
+                            <span class="small fw-bold text-secondary d-block mb-2">
+                                <i class="bi bi-magic me-1"></i> Or test with realistic medicine sample strips:
+                            </span>
+                            <div class="d-flex flex-wrap gap-2">
+                                <button class="btn btn-sm btn-outline-secondary" onclick="simulateOcrSample('Amoxicillin 500mg strip')">Amoxicillin 500mg Strip</button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="simulateOcrSample('Paracetamol 650mg blister')">Paracetamol 650mg Blister</button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="simulateOcrSample('Dextromethorphan Syrup bottle')">Cough Syrup Bottle</button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="simulateOcrSample('Cetirizine 10mg strip')">Cetirizine 10mg Strip</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- OCR Detected Verification Form -->
+                <div class="col-lg-6">
+                    <div class="card border-0 shadow-sm p-4 h-100">
+                        <h5 class="fw-bold mb-1 text-dark-teal">
+                            <i class="bi bi-check2-circle text-success me-2"></i> Detected Medicine Details
+                        </h5>
+                        <p class="text-muted small mb-3">Review, edit, and confirm the extracted medicine info before saving to your database.</p>
+
+                        <div id="ocrLoadingSpinner" class="text-center py-4" style="display: none;">
+                            <div class="spinner-border text-teal" role="status"></div>
+                            <p class="small text-muted mt-2">Processing medicine packaging with OCR...</p>
+                        </div>
+
+                        <div id="ocrConfirmationFormContainer">
+                            <div class="alert alert-info py-2 small d-flex align-items-center gap-2">
+                                <i class="bi bi-info-circle-fill"></i>
+                                <span>Capture a photo or choose a sample to auto-fill this form. You can freely edit any field.</span>
+                            </div>
+
+                            <div class="row g-2">
+                                <div class="col-md-8">
+                                    <label class="form-label small fw-semibold">Detected Name</label>
+                                    <input type="text" class="form-control" id="ocrDetectedName" placeholder="Waiting for scan...">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-semibold">Category</label>
+                                    <input type="text" class="form-control" id="ocrDetectedCategory" placeholder="Tablet/Capsule">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold">Dosage</label>
+                                    <input type="text" class="form-control" id="ocrDetectedDosage" placeholder="e.g., 500mg">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold">Frequency</label>
+                                    <input type="text" class="form-control" id="ocrDetectedFrequency" placeholder="Twice Daily">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold">Daily Dosage</label>
+                                    <input type="text" class="form-control" id="ocrDetectedDailyDosage" placeholder="2 Doses per day">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold">Reminder Time</label>
+                                    <input type="text" class="form-control font-monospace" id="ocrDetectedTime" placeholder="08:00 AM">
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label small fw-semibold">Instructions</label>
+                                    <input type="text" class="form-control" id="ocrDetectedInstructions" placeholder="Take after meals">
+                                </div>
+                            </div>
+
+                            <div class="mt-4 pt-3 border-top d-flex gap-2">
+                                <button class="btn btn-success flex-fill fw-semibold" onclick="confirmAndSaveOcrMedicine()">
+                                    <i class="bi bi-save me-1"></i> Confirm & Save to Database
+                                </button>
+                                <button class="btn btn-outline-secondary" onclick="switchView('add-medicine')">
+                                    Switch to Manual Entry
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <table class="history-table">
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Medicine</th>
-                        <th>Status</th>
-                        <th>Action Time</th>
-                    </tr>
-                </thead>
-                <tbody id="historyTableBody">
-                    <!-- Populated via JS -->
-                </tbody>
-            </table>
+        </section>
+
+        <!-- ==================== VIEW 4: MEDICINE LIST ==================== -->
+        <section id="view-medicine-list" class="app-view">
+            <div class="card border-0 shadow-sm p-4">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+                    <div>
+                        <h4 class="fw-bold mb-0">Active Medicine Regimen</h4>
+                        <p class="text-muted small mb-0">All prescribed and scheduled medications stored in your patient profile.</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-primary btn-sm" onclick="switchView('add-medicine')">
+                            <i class="bi bi-plus-lg me-1"></i> Add Medicine
+                        </button>
+                        <button class="btn btn-outline-teal btn-sm" onclick="switchView('camera-scanner')">
+                            <i class="bi bi-camera me-1"></i> Scan with Camera
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle clinical-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Medicine</th>
+                                <th>Category</th>
+                                <th>Dosage</th>
+                                <th>Daily Dosage</th>
+                                <th>Frequency</th>
+                                <th>Reminder Time</th>
+                                <th>Instructions</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="medicineListTableBody">
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== VIEW 5: DAILY DOSAGE TRACKING ==================== -->
+        <section id="view-daily-dosage" class="app-view">
+            <div class="row g-4">
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <h4 class="fw-bold mb-0">Today's Daily Dosage Tracker</h4>
+                                <p class="text-muted small mb-0">Real-time breakdown of scheduled, taken, skipped, and remaining pending doses.</p>
+                            </div>
+                            <span class="badge bg-light text-dark border px-3 py-2" id="dailyDosageDateBadge">
+                                Today: Sep 10, 2026
+                            </span>
+                        </div>
+
+                        <!-- Metric Tiles -->
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-3">
+                                <div class="p-3 rounded-3 bg-light border text-center">
+                                    <span class="text-muted small">Total Daily Doses</span>
+                                    <h3 class="fw-bold my-1 text-dark" id="dailyTotalCount">3</h3>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="p-3 rounded-3 bg-success-subtle border border-success-subtle text-center">
+                                    <span class="text-success small fw-semibold">Taken Doses</span>
+                                    <h3 class="fw-bold my-1 text-success" id="dailyTakenCount">1</h3>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="p-3 rounded-3 bg-warning-subtle border border-warning-subtle text-center">
+                                    <span class="text-warning small fw-semibold">Pending Doses</span>
+                                    <h3 class="fw-bold my-1 text-warning" id="dailyPendingCount">2</h3>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="p-3 rounded-3 bg-danger-subtle border border-danger-subtle text-center">
+                                    <span class="text-danger small fw-semibold">Skipped Doses</span>
+                                    <h3 class="fw-bold my-1 text-danger" id="dailySkippedCount">0</h3>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Daily Dosage Schedule Table -->
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Medicine Name</th>
+                                        <th>Scheduled Time</th>
+                                        <th>Single Dose</th>
+                                        <th>Daily Total</th>
+                                        <th>Current Status</th>
+                                        <th>Recorded Action Time</th>
+                                        <th class="text-end">Update Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dailyDosageTableBody">
+                                    <!-- Populated via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== VIEW 6: MEDICINE REMINDERS ==================== -->
+        <section id="view-reminders" class="app-view">
+            <div class="row g-4">
+                <div class="col-lg-7">
+                    <div class="card border-0 shadow-sm p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h4 class="fw-bold mb-0">Active Reminders & Notifications</h4>
+                            <button class="btn btn-sm btn-outline-teal" onclick="testNotificationBeep()">
+                                <i class="bi bi-volume-up me-1"></i> Test Chime
+                            </button>
+                        </div>
+                        <p class="text-muted small mb-4">
+                            Browser alerts trigger automatically when the clock matches the scheduled reminder time.
+                        </p>
+
+                        <div class="reminders-timeline" id="remindersTimelineContainer">
+                            <!-- Populated via JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-5">
+                    <div class="card border-0 shadow-sm p-4 bg-light">
+                        <h5 class="fw-bold mb-2">Reminder System Controls</h5>
+                        <p class="small text-muted">MediVoice uses browser notifications, audio chime playback, and voice synthesis to ensure you never miss a dose.</p>
+                        
+                        <div class="list-group list-group-flush rounded-3 border mb-3">
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="fw-semibold small">Desktop / Mobile Notifications</div>
+                                    <div class="text-muted small">Show system alert banner</div>
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="prefNotificationToggle" checked onchange="toggleNotificationPref(this.checked)">
+                                </div>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="fw-semibold small">Audio Sound Alert</div>
+                                    <div class="text-muted small">Play melodic notification tone</div>
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="prefSoundToggle" checked>
+                                </div>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="fw-semibold small">Text-to-Speech Spoken Announcement</div>
+                                    <div class="text-muted small">Read medicine & meal instructions aloud</div>
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="prefSpeechToggle" checked>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="p-3 bg-white rounded-3 border">
+                            <h6 class="fw-bold small mb-1"><i class="bi bi-bell me-1 text-warning"></i> Simulated Trigger</h6>
+                            <p class="small text-muted mb-2">Simulate a real-time reminder firing right now to test notification and audio:</p>
+                            <button class="btn btn-warning btn-sm w-100 fw-semibold text-dark" onclick="simulateActiveReminderTrigger()">
+                                Trigger Test Reminder Now
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== VIEW 7: MEDICINE HISTORY ==================== -->
+        <section id="view-history" class="app-view">
+            <div class="card border-0 shadow-sm p-4">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+                    <div>
+                        <h4 class="fw-bold mb-0">Complete Medicine History & Audit Log</h4>
+                        <p class="text-muted small mb-0">Comprehensive record of taken, skipped, and snoozed doses with timestamps.</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <select class="form-select form-select-sm" id="historyStatusFilter" onchange="filterHistoryTable(this.value)">
+                            <option value="ALL">All Statuses</option>
+                            <option value="TAKEN">Taken Only</option>
+                            <option value="SKIPPED">Skipped Only</option>
+                            <option value="SNOOZED">Snoozed Only</option>
+                        </select>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="exportHistoryLogs()">
+                            <i class="bi bi-download me-1"></i> Export Log
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th>Medicine Name</th>
+                                <th>Dosage</th>
+                                <th>Scheduled Time</th>
+                                <th>Action Taken Time</th>
+                                <th>Compliance Status</th>
+                                <th>Clinical Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody id="medicineHistoryTableBody">
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== VIEW 8: AI CHAT ASSISTANT ==================== -->
+        <section id="view-chat-assistant" class="app-view">
+            <div class="row justify-content-center">
+                <div class="col-lg-9">
+                    <div class="card border-0 shadow-sm overflow-hidden chat-container-card">
+                        <!-- Chat Header -->
+                        <div class="card-header bg-white border-bottom p-3 d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="avatar-bot bg-teal-subtle text-teal p-2 rounded-circle">
+                                    <i class="bi bi-robot fs-5"></i>
+                                </div>
+                                <div>
+                                    <h6 class="fw-bold mb-0">MediVoice AI Assistant</h6>
+                                    <span class="small text-success">● Connected to Patient Database</span>
+                                </div>
+                            </div>
+                            <button class="btn btn-sm btn-light border" onclick="clearChatHistory()">Clear Chat</button>
+                        </div>
+
+                        <!-- Chat Message Thread -->
+                        <div class="chat-messages-box p-3" id="chatThreadContainer">
+                            <div class="chat-bubble bot-bubble">
+                                <div class="bubble-sender"><i class="bi bi-shield-check text-teal me-1"></i> MediVoice AI</div>
+                                <div class="bubble-content">
+                                    Hello! I am your clinical medicine assistant. I can answer questions about your current medicines, dosage timings, pending doses, and history.
+                                    <div class="mt-2 small text-muted">Try clicking any quick prompt below or type your query:</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Suggested Chips -->
+                        <div class="px-3 py-2 bg-light border-top border-bottom d-flex gap-2 overflow-x-auto quick-chip-row">
+                            <button class="btn btn-sm btn-white border rounded-pill shadow-xs" onclick="sendChatPrompt('What medicines do I have today?')">
+                                "What medicines do I have today?"
+                            </button>
+                            <button class="btn btn-sm btn-white border rounded-pill shadow-xs" onclick="sendChatPrompt('What is my next medicine?')">
+                                "What is my next medicine?"
+                            </button>
+                            <button class="btn btn-sm btn-white border rounded-pill shadow-xs" onclick="sendChatPrompt('How many doses do I have today?')">
+                                "How many doses do I have today?"
+                            </button>
+                            <button class="btn btn-sm btn-white border rounded-pill shadow-xs" onclick="sendChatPrompt('What medicine reminders are pending?')">
+                                "What reminders are pending?"
+                            </button>
+                            <button class="btn btn-sm btn-white border rounded-pill shadow-xs" onclick="sendChatPrompt('Show my medicine history')">
+                                "Show my medicine history"
+                            </button>
+                            <button class="btn btn-sm btn-white border rounded-pill shadow-xs" onclick="sendChatPrompt('Mark my medicine as taken')">
+                                "Mark my medicine as taken"
+                            </button>
+                        </div>
+
+                        <!-- Input Bar -->
+                        <div class="card-footer bg-white p-3 border-0">
+                            <form onsubmit="handleChatSubmit(event)" class="d-flex gap-2">
+                                <input type="text" class="form-control" id="chatInputText" placeholder="Ask about medicines, reminders, dosage schedule..." autocomplete="off">
+                                <button type="submit" class="btn btn-teal px-4 fw-semibold">
+                                    <i class="bi bi-send-fill me-1"></i> Send
+                                </button>
+                                <button type="button" class="btn btn-outline-teal" onclick="switchView('voice-assistant')" title="Switch to Voice Mode">
+                                    <i class="bi bi-mic-fill"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== VIEW 9: VOICE ASSISTANT ==================== -->
+        <section id="view-voice-assistant" class="app-view">
+            <div class="row justify-content-center">
+                <div class="col-lg-8">
+                    <div class="card border-0 shadow-sm p-4 text-center voice-station-card">
+                        <div class="mb-3">
+                            <span class="badge bg-teal-subtle text-teal px-3 py-1 rounded-pill fw-semibold">
+                                SPEECH SYNTHESIS & RECOGNITION
+                            </span>
+                            <h3 class="fw-bold mt-2">Hands-Free Voice Assistant</h3>
+                            <p class="text-muted small">Speak natural commands to query medications, schedule reminders, or log doses.</p>
+                        </div>
+
+                        <!-- Animated Microphone Orb -->
+                        <div class="voice-orb-container my-4">
+                            <button class="voice-mic-orb" id="voiceMicOrbBtn" onclick="toggleVoiceRecording()">
+                                <i class="bi bi-mic-fill" id="voiceMicIcon"></i>
+                            </button>
+                            <div class="voice-pulse-rings" id="voiceRings"></div>
+                        </div>
+
+                        <h5 class="fw-bold" id="voiceStatusHeading">Tap Microphone to Speak</h5>
+                        <p class="text-muted small mb-4" id="voiceTranscriptText">Say: "What medicines do I have today?" or "Mark my medicine as taken"</p>
+
+                        <!-- Assistant Response Display -->
+                        <div class="voice-response-card p-3 rounded-3 text-start bg-light border mb-4" id="voiceResponseCard" style="display: none;">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="badge bg-teal text-white">MediVoice Answer</span>
+                                <button class="btn btn-sm btn-link p-0 text-teal" onclick="replayVoiceReply()">
+                                    <i class="bi bi-volume-up-fill me-1"></i> Listen Again
+                                </button>
+                            </div>
+                            <p class="mb-0 fw-medium text-dark" id="voiceResponseText"></p>
+                        </div>
+
+                        <!-- Sample Commands Grid -->
+                        <div class="text-start p-3 bg-light rounded-3 border">
+                            <h6 class="fw-bold small text-secondary mb-2">Supported Voice Commands:</h6>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <div class="p-2 bg-white rounded border small">
+                                        <i class="bi bi-chat-right-quote text-teal me-1"></i> "What medicines do I have today?"
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="p-2 bg-white rounded border small">
+                                        <i class="bi bi-chat-right-quote text-teal me-1"></i> "What is my next medicine?"
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="p-2 bg-white rounded border small">
+                                        <i class="bi bi-chat-right-quote text-teal me-1"></i> "Remind me to take Aspirin at 8 PM"
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="p-2 bg-white rounded border small">
+                                        <i class="bi bi-chat-right-quote text-teal me-1"></i> "Mark my medicine as taken"
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== VIEW 10: USER PROFILE & SETTINGS ==================== -->
+        <section id="view-profile" class="app-view">
+            <div class="row justify-content-center">
+                <div class="col-lg-8">
+                    <div class="card border-0 shadow-sm p-4">
+                        <div class="d-flex align-items-center gap-3 mb-4 pb-3 border-bottom">
+                            <div class="profile-avatar-large">AM</div>
+                            <div>
+                                <h4 class="fw-bold mb-0" id="profileNameDisplay">Alex Mercer</h4>
+                                <p class="text-muted small mb-0" id="profileEmailDisplay">patient@medivoice.ai</p>
+                            </div>
+                        </div>
+
+                        <form id="profileForm" onsubmit="handleProfileUpdate(event)">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold small">Full Name</label>
+                                    <input type="text" class="form-control" id="profileFormName" value="Alex Mercer">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold small">Email Address</label>
+                                    <input type="email" class="form-control" id="profileFormEmail" value="patient@medivoice.ai" disabled>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold small">Age</label>
+                                    <input type="number" class="form-control" id="profileFormAge" value="42">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold small">Blood Group</label>
+                                    <input type="text" class="form-control" id="profileFormBlood" value="O+">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold small">Emergency Contact</label>
+                                    <input type="text" class="form-control" id="profileFormEmergency" value="+1 (555) 234-5678">
+                                </div>
+                            </div>
+
+                            <div class="mt-4 pt-3 border-top d-flex justify-content-between align-items-center">
+                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="openLoginModal()">
+                                    Switch Patient / Sign Out
+                                </button>
+                                <button type="submit" class="btn btn-primary fw-semibold">
+                                    Update Profile
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
         </section>
 
     </main>
 
-    <!-- AUTHENTICATION MODAL -->
-    <div class="modal-overlay" id="authModal">
-        <div class="modal-card">
-            <div class="modal-header">
-                <h3 id="authModalTitle">Sign in to MediVoice</h3>
-                <button class="close-btn" onclick="toggleAuthModal()">&times;</button>
-            </div>
-            
-            <!-- STEP 1: EMAIL & PASSWORD -->
-            <div id="loginStep1">
-                <div class="form-group">
-                    <label>Email ID</label>
-                    <input type="email" id="authEmail" value="patient@medivoice.ai">
+    <!-- AUTHENTICATION & OTP MODAL -->
+    <div class="modal fade" id="authModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-bottom">
+                    <h5 class="modal-title fw-bold" id="authModalTitle">Sign in to MediVoice AI</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="form-group">
-                    <label>Password</label>
-                    <input type="password" id="authPassword" value="Password123!">
-                </div>
-                <button class="btn btn-primary btn-block" onclick="requestOtp()">Request 6-Digit OTP</button>
-            </div>
+                <div class="modal-body p-4">
+                    <!-- Step 1: Email & Password -->
+                    <div id="loginStep1">
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Email ID</label>
+                            <input type="email" class="form-control" id="authEmail" value="patient@medivoice.ai">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Password</label>
+                            <input type="password" class="form-control" id="authPassword" value="Password123!">
+                        </div>
+                        <button class="btn btn-primary w-100 fw-semibold" onclick="submitAuthRequestOtp()">
+                            Request 6-Digit OTP
+                        </button>
+                    </div>
 
-            <!-- STEP 2: OTP VERIFICATION -->
-            <div id="loginStep2" style="display: none;">
-                <p class="otp-instruction">Enter the 6-digit code sent to your email.</p>
-                <div class="simulated-otp-box" id="simulatedOtpBanner" onclick="fillOtp()">
-                    Simulated Code Received: <strong id="simulatedOtpCode">123456</strong> (Tap to paste)
+                    <!-- Step 2: OTP Entry -->
+                    <div id="loginStep2" style="display: none;">
+                        <p class="small text-muted mb-2">Enter the 6-digit verification code sent to your email.</p>
+                        <div class="alert alert-success py-2 small d-flex justify-content-between align-items-center" onclick="fillQuickOtp()" style="cursor: pointer;">
+                            <span>Simulated Code: <strong id="simulatedCodeText">123456</strong></span>
+                            <span class="badge bg-success">Tap to Paste</span>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">6-Digit Code</label>
+                            <input type="text" class="form-control font-monospace text-center fs-4 letter-spacing-2" id="authOtpInput" maxlength="6" placeholder="123456">
+                        </div>
+                        <button class="btn btn-success w-100 fw-semibold" onclick="submitAuthVerifyOtp()">
+                            Verify & Access Patient Portal
+                        </button>
+                    </div>
+
+                    <div id="authAlertBox" class="alert alert-danger mt-3 small py-2" style="display: none;"></div>
                 </div>
-                <div class="form-group">
-                    <label>6-Digit OTP</label>
-                    <input type="text" id="authOtpInput" maxlength="6" placeholder="123456">
-                </div>
-                <button class="btn btn-success btn-block" onclick="verifyOtp()">Verify & Sign In</button>
             </div>
-            <div class="auth-error" id="authErrorMsg"></div>
         </div>
     </div>
 
-    <!-- ADD MEDICINE MODAL -->
-    <div class="modal-overlay" id="addMedModal">
-        <div class="modal-card">
-            <div class="modal-header">
-                <h3>Add Prescription Medicine</h3>
-                <button class="close-btn" onclick="closeAddMedModal()">&times;</button>
-            </div>
-            <div class="form-group">
-                <label>Medicine Name *</label>
-                <input type="text" id="newMedName" placeholder="e.g., Amoxicillin 500mg">
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Category</label>
-                    <select id="newMedCategory">
-                        <option>Tablet</option>
-                        <option>Capsule</option>
-                        <option>Syrup</option>
-                        <option>Injection</option>
-                        <option>Drops</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Dosage</label>
-                    <input type="text" id="newMedDosage" placeholder="e.g., 1 Capsule (500mg)">
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Frequency</label>
-                    <input type="text" id="newMedFreq" placeholder="e.g., Twice Daily">
-                </div>
-                <div class="form-group">
-                    <label>Reminder Time</label>
-                    <input type="text" id="newMedTime" placeholder="e.g., 08:00 AM">
-                </div>
-            </div>
-            <div class="form-group">
-                <label>Meal Advice & Instructions</label>
-                <input type="text" id="newMedInstructions" placeholder="e.g., Take after meals with warm water">
-            </div>
-            <button class="btn btn-primary btn-block" onclick="saveNewMedicine()">Save Medicine</button>
-        </div>
-    </div>
-
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Application Logic -->
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>
